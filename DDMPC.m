@@ -10,17 +10,17 @@ classdef DDMPC < handle
       test = 1;
    end
    methods
-       function obj = DDMPC(u_traj,y_traj,Q,R,n,l)
-          obj.alpha_dim = length(u_traj)+1-l-n;
+       function obj = DDMPC(u_traj,y_traj,Q,R,n,L)
+          obj.alpha_dim = length(u_traj)+1-L-n;
           U_d = hankel(u_traj);
-          U_d = U_d(1:n+l, 1:obj.alpha_dim);
+          U_d = U_d(1:n+L, 1:obj.alpha_dim);
           Y_d = hankel(y_traj);
-          Y_d = Y_d(1:n+l, 1:length(y_traj)+1-l-n); 
+          Y_d = Y_d(1:n+L, 1:length(y_traj)+1-L-n); 
           
           obj.Aeq = [U_d(1:n,1:end); Y_d(1:n,1:end)];
 
           a = [U_d(n+1:end,1:end); Y_d(n+1:end,1:end)];
-          b =  blkdiag(kron(eye(l),Q),kron(eye(l),R));
+          b =  blkdiag(kron(eye(L),Q),kron(eye(L),R));
           obj.H = a' * b * a;
           obj.H = (obj.H+obj.H')/2;
 

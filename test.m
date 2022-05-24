@@ -27,7 +27,7 @@ end
 
 
 
-ddmpc= DDMPC(u_traj,y_traj,Q,R,n,l);
+ddmpc= DDMPC(u_traj,y_traj,R,Q,n,l);
 u = 0;
 x = randn(x_dim,1);
 
