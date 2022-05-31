@@ -31,3 +31,15 @@ R = 0.1;    % Cost matrix R
 Q = 1;      % Cost matix Q
 
 ddmpc= DDMPC(u_d,y_d,Q,R,n,L);
+
+%% Training
+% Initial training values
+u = 10;
+x = ones(n,1);
+
+for i=1:100
+    y = C * x + D * u;
+    x = A * x + B * u;
+    u = ddmpc.step(u,y);
+    [y,u]
+end

@@ -19,7 +19,8 @@ classdef DDMPC < handle
         p;  % Output dimension
         HLn_u;  % Input Hankel matrix: H_(L+n)(u^d)
         HLn_y;  % Output Hankel matrix: H_(L+n)(d^d)
-        quadCostMat;    % Quadratic cost matrix for quadprog solver
+        costMat;    % Quadratic cost matrix for quadprog solver
+        costVec;    % Cost vector for quadprog solver
         condMat;    % Condition matrix for quadprog solver
         Hn_u;   
         Hn_y;
@@ -96,27 +97,27 @@ classdef DDMPC < handle
           obj.Hn = [obj.Hn_u; obj.Hn_y];    % Create combined Hankel matrix history
           obj.HL = [obj.HL_u; obj.HL_y];    % Create combined Hankel matrix future
           
-          obj.quadCostMat = blkdiag(kron(eye(L),Q),kron(eye(L),R)); % Create quadratic cost matrix
-          obj.quadCostMat = obj.HL'*obj.quadCostMat*obj.HL;
+          obj.costMat = blkdiag(kron(eye(L),Q),kron(eye(L),R)); % Create quadratic cost matrix
+          obj.costMat = obj.HL'*obj.costMat*obj.HL;
+          obj.costVec = zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
           
           obj.condMat = obj.Hn; % Create condition matrix for quadprog solver (can be further enhanced)
           obj.u_measure=zeros(obj.n*obj.m,1);
           obj.y_measure=zeros(obj.n*obj.p,1);
        end
        
-%        function u_next = step(obj,u_measure_new, y_measure_new)
-% 
-%            obj.u_measure = [obj.u_measure; u_measure_new];
-%            obj.y_measure = [obj.y_measure; y_measure_new];
-% 
-%            beq = [obj.u_measure(end-obj.n+1:end);obj.y_measure(end-obj.n+1:end)];
-% 
-%            f = zeros(obj.alpha_dim,1);           
-%            options = optimoptions('quadprog','Display','off');
-%            
-%            alpha = quadprog(obj.H,f,[],[],obj.Aeq,beq, [],[],[],options);
-% 
-%            u_next = obj.U_d_next * alpha;
-%       end
+       function u_next = step(obj,u_measure_new, y_measure_new)
+
+           obj.u_measure = [obj.u_measure; u_measure_new];  % Stacked input measurement trajectories
+           obj.y_measure = [obj.y_measure; y_measure_new];  % Stacked output measurement trajectories
+
+           condVec = [obj.u_measure(end-obj.n+1:end);obj.y_measure(end-obj.n+1:end)];   % Create condition vector for quadprog solver
+       
+           options = optimoptions('quadprog','Display','final');   % Define options for quadprog solver
+           
+           alpha = quadprog(obj.costMat,obj.costVec,[],[],obj.condMat,condVec, [],[],[],options);
+
+           u_next = obj.HL_u(obj.m,:) * alpha;
+      end
    end
 end
