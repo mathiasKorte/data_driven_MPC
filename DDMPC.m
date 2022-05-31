@@ -16,6 +16,8 @@ classdef DDMPC < handle
         L;  % Prediction horizon
         N;  % Input trajectory length
         m;  % Input dimension
+        HLn_u;   % Input Hankel matrix: H_(L+n)(u^d)
+        HLn_y;   % Output Hankel matrix: H_(L+n)(d^d)
    end
    methods
        function obj = DDMPC(u_d,y_d,Q,R,n,L)
@@ -41,7 +43,18 @@ classdef DDMPC < handle
           obj.n = p.Results.n;
           obj.L = p.Results.L;
           
-          [obj.N, obj.m] = size(obj.u_d)
+          [obj.N, obj.m] = size(obj.u_d);
+          
+          % Check required data length
+          if ~(obj.N >= (obj.m+1)*obj.L-1)
+              error('Lower bound on required data length N not full filled')
+          end
+          
+          obj.HLn_u = hankel(obj.u_d);   % Create input Hankel matrix: H_(L+n)(u^d)
+          obj.HLn_u = obj.HLn_u(1:obj.L+obj.n, 1:(obj.N-obj.L-obj.n+1));
+          obj.HLn_y = hankel(obj.y_d);   % Create output Hankel matrix: H_(L+n)(y^d)
+          obj.HLn_y = obj.HLn_y(1:obj.L+obj.n, 1:(obj.N-obj.L-obj.n+1));
+          
 %           obj.alpha_dim = length(u_traj)+1-L-n;
 %           U_d = hankel(u_traj);
 %           U_d = U_d(1:n+L, 1:obj.alpha_dim);
