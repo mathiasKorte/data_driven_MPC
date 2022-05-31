@@ -1,6 +1,6 @@
 function bool = check_persistently_exciting(H, m)
     threshold = 0.01;
-    L = size(a,1);
+    L = size(H,1);
     sigma = svd(H);
     bool = false;
     if(length(sigma)>=m*L)

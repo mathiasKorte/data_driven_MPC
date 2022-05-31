@@ -47,7 +47,7 @@ classdef DDMPC < handle
           
           % Check required data length
           if ~(obj.N >= (obj.m+1)*obj.L-1)
-              error('Lower bound on required data length N not full filled')
+              error("Lower bound on required data length N not full filled")
           end
           
           obj.HLn_u = hankel(obj.u_d);   % Create input Hankel matrix: H_(L+n)(u^d)
@@ -55,6 +55,10 @@ classdef DDMPC < handle
           obj.HLn_y = hankel(obj.y_d);   % Create output Hankel matrix: H_(L+n)(y^d)
           obj.HLn_y = obj.HLn_y(1:obj.L+obj.n, 1:(obj.N-obj.L-obj.n+1));
           
+          % Check if input data is persistntly exciting of order L
+          if ~(check_persistently_exciting(obj.HLn_u, obj.m))
+              error("Input sequence is not persistently exciting of order " + (obj.L+obj.n))
+          end
 %           obj.alpha_dim = length(u_traj)+1-L-n;
 %           U_d = hankel(u_traj);
 %           U_d = U_d(1:n+L, 1:obj.alpha_dim);
