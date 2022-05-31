@@ -23,8 +23,8 @@ classdef DDMPC < handle
        function obj = DDMPC(u_d,y_d,Q,R,n,L)
           
           p = inputParser;
-          validQ = @(x) (x>0);
-          validR = @(x) (x>0);
+          validQ = @(x) (check_positiv_semi_definit(x));
+          validR = @(x) (check_positiv_semi_definit(x));
           validn = @(x) (x>0);
           validL = @(x) (x>0);
           
