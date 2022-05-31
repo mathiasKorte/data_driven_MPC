@@ -50,10 +50,11 @@ classdef DDMPC < handle
               error("Lower bound on required data length N not full filled")
           end
           
-          obj.HLn_u = hankel(obj.u_d);   % Create input Hankel matrix: H_(L+n)(u^d)
-          obj.HLn_u = obj.HLn_u(1:obj.L+obj.n, 1:(obj.N-obj.L-obj.n+1));
-          obj.HLn_y = hankel(obj.y_d);   % Create output Hankel matrix: H_(L+n)(y^d)
-          obj.HLn_y = obj.HLn_y(1:obj.L+obj.n, 1:(obj.N-obj.L-obj.n+1));
+          % Create input Hankel matrix: H_(L+n)(u^d)
+          obj.HLn_u = create_Hankel(obj.u_d, obj.L, obj.n);
+          % Create output Hankel matrix: H_(L+n)(y^d)
+          obj.HLn_y = create_Hankel(obj.y_d, obj.L, obj.n);
+
           
           % Check if input data is persistntly exciting of order L
           if ~(check_persistently_exciting(obj.HLn_u, obj.m))
