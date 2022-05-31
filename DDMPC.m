@@ -16,34 +16,61 @@ classdef DDMPC < handle
         L;  % Prediction horizon
         N;  % Input trajectory length
         m;  % Input dimension
-        HLn_u;   % Input Hankel matrix: H_(L+n)(u^d)
-        HLn_y;   % Output Hankel matrix: H_(L+n)(d^d)
+        p;  % Output dimension
+        HLn_u;  % Input Hankel matrix: H_(L+n)(u^d)
+        HLn_y;  % Output Hankel matrix: H_(L+n)(d^d)
+        quadCostMat;    % Quadratic cost matrix for quadprog solver
+        condMat;    % Condition matrix for quadprog solver
+        Hn_u;   
+        Hn_y;
+        HL_u;
+        HL_y;
+        HL;    % Hankel matrix [H_L(u^d); H_L(y^d)]
+        Hn;    % Hankel matrix [H_n(u^d); H_n(y^d)]
+        u_measure;
+        y_measure;
    end
    methods
        function obj = DDMPC(u_d,y_d,Q,R,n,L)
           
-          p = inputParser;
+          pars = inputParser;
           validQ = @(x) (check_positiv_semi_definit(x));
           validR = @(x) (check_positiv_semi_definit(x));
           validn = @(x) (x>0);
           validL = @(x) (x>0);
           
-          addRequired(p,'u_d');
-          addRequired(p,'y_d');
-          addRequired(p,'Q',validQ);
-          addRequired(p,'R',validR);
-          addRequired(p,'n',validn);
-          addRequired(p,'L',validL);
+          addRequired(pars,'u_d');
+          addRequired(pars,'y_d');
+          addRequired(pars,'Q',validQ);
+          addRequired(pars,'R',validR);
+          addRequired(pars,'n',validn);
+          addRequired(pars,'L',validL);
           
-          parse(p,u_d,y_d,Q,R,n,L);
-          obj.u_d = p.Results.u_d;
-          obj.y_d = p.Results.y_d;
-          obj.Q = p.Results.Q;
-          obj.R = p.Results.R;
-          obj.n = p.Results.n;
-          obj.L = p.Results.L;
+          parse(pars,u_d,y_d,Q,R,n,L);
+          obj.u_d = pars.Results.u_d;
+          obj.y_d = pars.Results.y_d;
+          obj.Q = pars.Results.Q;
+          obj.R = pars.Results.R;
+          obj.n = pars.Results.n;
+          obj.L = pars.Results.L;
           
-          [obj.N, obj.m] = size(obj.u_d);
+          [N_u, obj.m] = size(obj.u_d);
+          [N_y, obj.p] = size(obj.y_d);
+          
+          % Check size of cost matrices
+          if ~isequal(size(obj.Q), [obj.p obj.p])
+               error("Size of costmatrix Q is not correct")
+          end
+          if ~isequal(size(obj.R), [obj.m obj.m])
+               error("Size of costmatrix R is not correct")
+          end
+          
+          % Check that input and output length are the same
+          if ~(N_u == N_y)
+              error("Input and output trajectory length don't fit")
+          end
+          
+          obj.N = N_u;
           
           % Check required data length
           if ~(obj.N >= (obj.m+1)*obj.L-1)
@@ -60,28 +87,23 @@ classdef DDMPC < handle
           if ~(check_persistently_exciting(obj.HLn_u, obj.m))
               error("Input sequence is not persistently exciting of order " + (obj.L+obj.n))
           end
-%           obj.alpha_dim = length(u_traj)+1-L-n;
-%           U_d = hankel(u_traj);
-%           U_d = U_d(1:n+L, 1:obj.alpha_dim);
-%           Y_d = hankel(y_traj);
-%           Y_d = Y_d(1:n+L, 1:length(y_traj)+1-L-n); 
-%           
-%           obj.Aeq = [U_d(1:n,1:end); Y_d(1:n,1:end)];
-% 
-%           a = [U_d(n+1:end,1:end); Y_d(n+1:end,1:end)];
-%           b =  blkdiag(kron(eye(L),Q),kron(eye(L),R));
-%           obj.H = a' * b * a;
-%           obj.H = (obj.H+obj.H')/2;
-% 
-%           obj.u_measure=zeros(n,1);
-%           obj.y_measure=zeros(n,1);
-% 
-%           obj.U_d_next = U_d(n+1, 1:end);
-%           obj.n = n;
+          
+          obj.Hn_u = obj.HLn_u(1:obj.n*obj.m,:);
+          obj.Hn_y = obj.HLn_y(1:obj.n*obj.p,:);
+          obj.HL_u = obj.HLn_u((obj.n+1)*obj.m:end,:);
+          obj.HL_y = obj.HLn_y((obj.n+1)*obj.p:end,:);
+          
+          obj.Hn = [obj.Hn_u; obj.Hn_y];    % Create combined Hankel matrix history
+          obj.HL = [obj.HL_u; obj.HL_y];    % Create combined Hankel matrix future
+          
+          obj.quadCostMat = blkdiag(kron(eye(L),Q),kron(eye(L),R)); % Create quadratic cost matrix
+          obj.quadCostMat = obj.HL'*obj.quadCostMat*obj.HL;
+          
+          obj.condMat = obj.Hn; % Create condition matrix for quadprog solver (can be further enhanced)
+          obj.u_measure=zeros(obj.n*obj.m,1);
+          obj.y_measure=zeros(obj.n*obj.p,1);
        end
-       function print(obj)
-           obj.u_d
-       end
+       
 %        function u_next = step(obj,u_measure_new, y_measure_new)
 % 
 %            obj.u_measure = [obj.u_measure; u_measure_new];
