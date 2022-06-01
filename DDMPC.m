@@ -85,21 +85,22 @@ classdef DDMPC < handle
 
           
           % Check if input data is persistntly exciting of order L
-          if ~(check_persistently_exciting(obj.HLn_u, obj.m))
+          if ~(check_persistently_exciting(obj.HLn_u))
               error("Input sequence is not persistently exciting of order " + (obj.L+obj.n))
           end
           
           obj.Hn_u = obj.HLn_u(1:obj.n*obj.m,:);
           obj.Hn_y = obj.HLn_y(1:obj.n*obj.p,:);
-          obj.HL_u = obj.HLn_u((obj.n+1)*obj.m:end,:);
-          obj.HL_y = obj.HLn_y((obj.n+1)*obj.p:end,:);
+          obj.HL_u = obj.HLn_u(obj.n*obj.m+1:end,:);
+          obj.HL_y = obj.HLn_y(obj.n*obj.p+1:end,:);
           
           obj.Hn = [obj.Hn_u; obj.Hn_y];    % Create combined Hankel matrix history
           obj.HL = [obj.HL_u; obj.HL_y];    % Create combined Hankel matrix future
           
           obj.costMat = blkdiag(kron(eye(L),Q),kron(eye(L),R)); % Create quadratic cost matrix
           obj.costMat = obj.HL'*obj.costMat*obj.HL;
-          obj.costVec = zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
+          obj.costMat = (obj.costMat+obj.costMat')/2;
+          obj.costVec = ones(obj.N+1-obj.L-obj.n,1)/100;   % Create cost vector
           
           obj.condMat = obj.Hn; % Create condition matrix for quadprog solver (can be further enhanced)
           obj.u_measure=zeros(obj.n*obj.m,1);
@@ -111,13 +112,16 @@ classdef DDMPC < handle
            obj.u_measure = [obj.u_measure; u_measure_new];  % Stacked input measurement trajectories
            obj.y_measure = [obj.y_measure; y_measure_new];  % Stacked output measurement trajectories
 
-           condVec = [obj.u_measure(end-obj.n+1:end);obj.y_measure(end-obj.n+1:end)];   % Create condition vector for quadprog solver
+           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.m+1:end)];   % Create condition vector for quadprog solver
        
-           options = optimoptions('quadprog','Display','final');   % Define options for quadprog solver
+           options = optimoptions('quadprog','Display','off');%, 'MaxIterations',2.0e+05);   % Define options for quadprog solver
            
            alpha = quadprog(obj.costMat,obj.costVec,[],[],obj.condMat,condVec, [],[],[],options);
 
-           u_next = obj.HL_u(obj.m,:) * alpha;
+           cost = alpha' * obj.costMat * alpha
+           cond = max(abs(obj.condMat * alpha-condVec))
+
+           u_next = obj.HL_u(1:obj.m,:) * alpha;
       end
    end
 end
