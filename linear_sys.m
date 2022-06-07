@@ -1,11 +1,11 @@
 %% Prepare workspace
-close;
-clear;
+close all;
+clear all;
 clc;
 
 %% Create the system
 % The system has two states and one single input
-A = [1, 0.9;0,1.1]*1.1;
+A = [1, 0.9;0,1.1]*1.05;
 B = [1.3,2; 0,1];
 C = [1.15,2.3;5,6];
 D = [0,1;2,3];

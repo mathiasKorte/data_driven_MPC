@@ -97,11 +97,12 @@ classdef DDMPC < handle
           obj.Hn = [obj.Hn_u; obj.Hn_y];    % Create combined Hankel matrix history
           obj.HL = [obj.HL_u; obj.HL_y];    % Create combined Hankel matrix future
           
-          obj.costMat = blkdiag(kron(eye(L),Q),kron(eye(L),R)); % Create quadratic cost matrix
-          obj.costMat = obj.HL'*obj.costMat*obj.HL;
+          QR_diag = blkdiag(kron(eye(L),R),kron(eye(L),Q)); % Create quadratic cost matrix
+          obj.costMat = obj.HL'*QR_diag*obj.HL;
           obj.costMat = (obj.costMat+obj.costMat')/2;
-          obj.costVec = ones(obj.N+1-obj.L-obj.n,1)/100;   % Create cost vector
+          obj.costVec = 2*[kron(ones(L,1),obj.u_s); kron(ones(L,1),obj.y_s)]'*QR_diag*obj.HL; %zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
           
+
           obj.condMat = obj.Hn; % Create condition matrix for quadprog solver (can be further enhanced)
           obj.u_measure=zeros(obj.n*obj.m,1);
           obj.y_measure=zeros(obj.n*obj.p,1);
@@ -118,8 +119,8 @@ classdef DDMPC < handle
            
            alpha = quadprog(obj.costMat,obj.costVec,[],[],obj.condMat,condVec, [],[],[],options);
 
-%            cost = alpha' * obj.costMat * alpha
-%            cond = max(abs(obj.condMat * alpha-condVec))
+           cost = alpha' * obj.costMat * alpha
+           cond = max(abs(obj.condMat * alpha-condVec))
 
            u_next = obj.HL_u(1:obj.m,:) * alpha;
       end
