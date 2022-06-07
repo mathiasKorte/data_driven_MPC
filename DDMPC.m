@@ -113,7 +113,7 @@ classdef DDMPC < handle
           QR_diag = blkdiag(kron(eye(L),R),kron(eye(L),Q)); % Create quadratic cost matrix
           obj.costMat = obj.HL'*QR_diag*obj.HL;
           obj.costMat = (obj.costMat+obj.costMat')/2;
-          obj.costVec = 2*[kron(ones(L,1),obj.u_s); kron(ones(L,1),obj.y_s)]'*QR_diag*obj.HL; %zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
+          obj.costVec = -2*[kron(ones(L,1),obj.u_s'); kron(ones(L,1),obj.y_s')]'*QR_diag*obj.HL; %zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
           
 
           obj.condMat = obj.Hn; % Create condition matrix for quadprog solver (can be further enhanced)
