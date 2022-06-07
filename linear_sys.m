@@ -32,7 +32,7 @@ L = 50;     % Prediction horizon
 R = 0.1*eye(2);    % Cost matrix R
 Q = 1*eye(2);      % Cost matix Q
 
-ddmpc= DDMPC(u_d,y_d,Q,R,1,L);
+ddmpc= DDMPC(u_d,y_d,Q,R,1,L,'u_s',[1 2],'y_s',[5 3]);
 
 %% Training
 % Initial training values
