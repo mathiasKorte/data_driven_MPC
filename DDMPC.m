@@ -14,6 +14,8 @@ classdef DDMPC < handle
         R;  % Cost matri R
         n;  % Upper bound on system order
         L;  % Prediction horizon
+        u_s;    % Setpoint for the input
+        y_s;    % Setpoint for the output
         N;  % Input trajectory length
         m;  % Input dimension
         p;  % Output dimension
@@ -32,13 +34,19 @@ classdef DDMPC < handle
         y_measure;
    end
    methods
-       function obj = DDMPC(u_d,y_d,Q,R,n,L)
+       function obj = DDMPC(u_d,y_d,Q,R,n,L,varargin)
           
           pars = inputParser;
+          
+          defaultU_s = zeros(1,size(u_d,2));
+          defaultY_s = zeros(1,size(y_d,2));
+          
           validQ = @(x) (check_positiv_semi_definit(x));
           validR = @(x) (check_positiv_semi_definit(x));
           validn = @(x) (x>0);
           validL = @(x) (x>0);
+          validU_s = @(x) (size(x,1) == 1 && size(x,2) == size(u_d,2));
+          validY_s = @(x) (size(x,1) == 1 && size(x,2) == size(y_d,2));
           
           addRequired(pars,'u_d');
           addRequired(pars,'y_d');
@@ -46,14 +54,19 @@ classdef DDMPC < handle
           addRequired(pars,'R',validR);
           addRequired(pars,'n',validn);
           addRequired(pars,'L',validL);
+          addOptional(pars,'u_s',defaultU_s,validU_s);
+          addOptional(pars,'y_s',defaultY_s,validY_s);
           
-          parse(pars,u_d,y_d,Q,R,n,L);
+          
+          parse(pars,u_d,y_d,Q,R,n,L,varargin{:});
           obj.u_d = pars.Results.u_d;
           obj.y_d = pars.Results.y_d;
           obj.Q = pars.Results.Q;
           obj.R = pars.Results.R;
           obj.n = pars.Results.n;
           obj.L = pars.Results.L;
+          obj.u_s = pars.Results.u_s;
+          obj.y_s = pars.Results.y_s;
           
           [N_u, obj.m] = size(obj.u_d);
           [N_y, obj.p] = size(obj.y_d);
