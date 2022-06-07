@@ -118,8 +118,8 @@ classdef DDMPC < handle
            
            alpha = quadprog(obj.costMat,obj.costVec,[],[],obj.condMat,condVec, [],[],[],options);
 
-           cost = alpha' * obj.costMat * alpha
-           cond = max(abs(obj.condMat * alpha-condVec))
+%            cost = alpha' * obj.costMat * alpha
+%            cond = max(abs(obj.condMat * alpha-condVec))
 
            u_next = obj.HL_u(1:obj.m,:) * alpha;
       end
