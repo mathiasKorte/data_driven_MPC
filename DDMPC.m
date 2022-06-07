@@ -32,6 +32,10 @@ classdef DDMPC < handle
         Hn;    % Hankel matrix [H_n(u^d); H_n(y^d)]
         u_measure;
         y_measure;
+        G_u;
+        G_y;
+        g_u;
+        g_y;
    end
    methods
        function obj = DDMPC(u_d,y_d,Q,R,n,L,varargin)
@@ -40,6 +44,10 @@ classdef DDMPC < handle
           
           defaultU_s = zeros(1,size(u_d,2));
           defaultY_s = zeros(1,size(y_d,2));
+          defaultG_u = zeros(0,size(u_d,2));
+          defaultG_y = zeros(0,size(y_d,2));
+          defaultg_u = zeros(0,1);
+          defaultg_y = zeros(0,1);
           
           validQ = @(x) (check_positiv_semi_definit(x));
           validR = @(x) (check_positiv_semi_definit(x));
@@ -47,6 +55,10 @@ classdef DDMPC < handle
           validL = @(x) (x>0);
           validU_s = @(x) (size(x,1) == 1 && size(x,2) == size(u_d,2));
           validY_s = @(x) (size(x,1) == 1 && size(x,2) == size(y_d,2));
+          validG_u = @(x) (size(x,2) == size(u_d,2));
+          validG_y = @(x) (size(x,2) == size(y_d,2));
+          validg_u = @(x) (size(x,2) == 1);
+          validg_y = @(x) (size(x,2) == 1);
           
           addRequired(pars,'u_d');
           addRequired(pars,'y_d');
@@ -56,6 +68,10 @@ classdef DDMPC < handle
           addRequired(pars,'L',validL);
           addOptional(pars,'u_s',defaultU_s,validU_s);
           addOptional(pars,'y_s',defaultY_s,validY_s);
+          addOptional(pars,'G_mat_u',defaultG_u,validG_u);
+          addOptional(pars,'G_mat_y',defaultG_y,validG_y);
+          addOptional(pars,'g_vec_u',defaultg_u,validg_u);
+          addOptional(pars,'g_vec_y',defaultg_y,validg_y);
           
           
           parse(pars,u_d,y_d,Q,R,n,L,varargin{:});
@@ -67,9 +83,18 @@ classdef DDMPC < handle
           obj.L = pars.Results.L;
           obj.u_s = pars.Results.u_s;
           obj.y_s = pars.Results.y_s;
+          obj.G_u = pars.Results.G_mat_u;
+          obj.G_y = pars.Results.G_mat_y;
+          obj.g_u = pars.Results.g_vec_u;
+          obj.g_y = pars.Results.g_vec_y;
           
           [N_u, obj.m] = size(obj.u_d);
           [N_y, obj.p] = size(obj.y_d);
+
+          % Check Condidition matricies and vectors G_u, G_y, g_u, g_y
+          if((size(obj.G_u,1)~=size(obj.g_u,1))||(size(obj.G_y,1)~=size(obj.g_y,1)))
+              error("Sizes of Conndtion Matrix G and vector g do not fit")
+          end
           
           % Check size of cost matrices
           if ~isequal(size(obj.Q), [obj.p obj.p])
@@ -116,7 +141,7 @@ classdef DDMPC < handle
           obj.costVec = -2*[kron(ones(L,1),obj.u_s'); kron(ones(L,1),obj.y_s')]'*QR_diag*obj.HL; %zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
           
 
-          obj.condMat = obj.Hn; % Create condition matrix for quadprog solver (can be further enhanced)
+          obj.condMat = [obj.Hn;blkdiag(kron(eye(L),obj.G_u),kron(eye(L),obj.G_y))*obj.HL]; % Create condition matrix for quadprog solver (can be further enhanced)
           obj.u_measure=zeros(obj.n*obj.m,1);
           obj.y_measure=zeros(obj.n*obj.p,1);
        end
@@ -126,8 +151,8 @@ classdef DDMPC < handle
            obj.u_measure = [obj.u_measure; u_measure_new];  % Stacked input measurement trajectories
            obj.y_measure = [obj.y_measure; y_measure_new];  % Stacked output measurement trajectories
 
-           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.m+1:end)];   % Create condition vector for quadprog solver
-       
+           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.m+1:end); kron(ones(obj.L,1),obj.g_u);kron(ones(obj.L,1),obj.g_y)];   % Create condition vector for quadprog solver
+
            options = optimoptions('quadprog','Display','off');%, 'MaxIterations',2.0e+05);   % Define options for quadprog solver
            
            alpha = quadprog(obj.costMat,obj.costVec,[],[],obj.condMat,condVec, [],[],[],options);
