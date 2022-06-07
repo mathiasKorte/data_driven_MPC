@@ -36,6 +36,8 @@ classdef DDMPC < handle
         G_y;
         g_u;
         g_y;
+        boundaryMat;
+        boundaryVec;
    end
    methods
        function obj = DDMPC(u_d,y_d,Q,R,n,L,varargin)
@@ -141,7 +143,12 @@ classdef DDMPC < handle
           obj.costVec = -2*[kron(ones(L,1),obj.u_s'); kron(ones(L,1),obj.y_s')]'*QR_diag*obj.HL; %zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
           
 
-          obj.condMat = [obj.Hn;blkdiag(kron(eye(L),obj.G_u),kron(eye(L),obj.G_y))*obj.HL]; % Create condition matrix for quadprog solver (can be further enhanced)
+          obj.condMat = obj.Hn; % Create condition matrix for quadprog solver 
+
+          obj.boundaryMat = blkdiag(kron(eye(L),obj.G_u),kron(eye(L),obj.G_y))*obj.HL;
+          obj.boundaryVec = [kron(ones(obj.L,1),obj.g_u);kron(ones(obj.L,1),obj.g_y)];
+          
+          
           obj.u_measure=zeros(obj.n*obj.m,1);
           obj.y_measure=zeros(obj.n*obj.p,1);
        end
@@ -151,11 +158,11 @@ classdef DDMPC < handle
            obj.u_measure = [obj.u_measure; u_measure_new];  % Stacked input measurement trajectories
            obj.y_measure = [obj.y_measure; y_measure_new];  % Stacked output measurement trajectories
 
-           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.m+1:end); kron(ones(obj.L,1),obj.g_u);kron(ones(obj.L,1),obj.g_y)];   % Create condition vector for quadprog solver
+           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.m+1:end)];   % Create condition vector for quadprog solver
 
            options = optimoptions('quadprog','Display','off');%, 'MaxIterations',2.0e+05);   % Define options for quadprog solver
            
-           alpha = quadprog(obj.costMat,obj.costVec,[],[],obj.condMat,condVec, [],[],[],options);
+           alpha = quadprog(obj.costMat,obj.costVec,obj.boundaryMat,obj.boundaryVec,obj.condMat,condVec, [],[],[],options);
 
            cost = alpha' * obj.costMat * alpha
            cond = max(abs(obj.condMat * alpha-condVec))
