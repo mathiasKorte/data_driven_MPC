@@ -1,13 +1,5 @@
 classdef DDMPC < handle
    properties
-%       H
-%       Aeq
-%       alpha_dim
-%       u_measure
-%       y_measure
-%       U_d_next
-%       n
-%       test = 1;
         u_d;    % Input trajectory
         y_d;    % Output trajectory
         Q;  % Cost matrix Q
@@ -43,39 +35,75 @@ classdef DDMPC < handle
        function obj = DDMPC(u_d,y_d,Q,R,n,L,varargin)
           
           pars = inputParser;
+          %% Required input variables
+          % Validation
+          validQ = @(x) (check_positiv_semi_definit(x));
+          validR = @(x) (check_positiv_semi_definit(x));
+          validn = @(x) (x>0);
+          validL = @(x) (x>0);
           
+          % Add variables
+          addRequired(pars,'u_d');      % Input trajectory
+          addRequired(pars,'y_d');      % Output trajectory
+          addRequired(pars,'Q',validQ); % Cost matrix Q
+          addRequired(pars,'R',validR); % Cost matrix R
+          addRequired(pars,'n',validn); % Upperbound on system order
+          addRequired(pars,'L',validL); % Prediction horizon
+          
+          %% Optional input variables
+          % Artificial setpoints
           defaultU_s = zeros(1,size(u_d,2));
           defaultY_s = zeros(1,size(y_d,2));
+          
+          validU_s = @(x) (size(x,1) == 1 && size(x,2) == size(u_d,2));
+          validY_s = @(x) (size(x,1) == 1 && size(x,2) == size(y_d,2));
+          
+          addOptional(pars,'u_s',defaultU_s,validU_s);
+          addOptional(pars,'y_s',defaultY_s,validY_s);
+          
+          % Constraint sets          
           defaultG_u = zeros(0,size(u_d,2));
           defaultG_y = zeros(0,size(y_d,2));
           defaultg_u = zeros(0,1);
           defaultg_y = zeros(0,1);
           
-          validQ = @(x) (check_positiv_semi_definit(x));
-          validR = @(x) (check_positiv_semi_definit(x));
-          validn = @(x) (x>0);
-          validL = @(x) (x>0);
-          validU_s = @(x) (size(x,1) == 1 && size(x,2) == size(u_d,2));
-          validY_s = @(x) (size(x,1) == 1 && size(x,2) == size(y_d,2));
           validG_u = @(x) (size(x,2) == size(u_d,2));
           validG_y = @(x) (size(x,2) == size(y_d,2));
           validg_u = @(x) (size(x,2) == 1);
           validg_y = @(x) (size(x,2) == 1);
           
-          addRequired(pars,'u_d');
-          addRequired(pars,'y_d');
-          addRequired(pars,'Q',validQ);
-          addRequired(pars,'R',validR);
-          addRequired(pars,'n',validn);
-          addRequired(pars,'L',validL);
-          addOptional(pars,'u_s',defaultU_s,validU_s);
-          addOptional(pars,'y_s',defaultY_s,validY_s);
           addOptional(pars,'G_mat_u',defaultG_u,validG_u);
           addOptional(pars,'G_mat_y',defaultG_y,validG_y);
           addOptional(pars,'g_vec_u',defaultg_u,validg_u);
           addOptional(pars,'g_vec_y',defaultg_y,validg_y);
           
+          % TODO: What is the default size of S
+          % Design parameter
+          defaultS = 1;
+          validS = @(x) (x>0);
+          addOptional(pars,'S',defaultS,validS); 
           
+          % Regularization parameters
+          default_lambda_alpha = 1;
+          default_lambda_sigma = 1;
+          
+          valid_lambda_alpha = @(x) (x>0);
+          valid_lambda_sigma = @(x) (x>0);
+          
+          addOptional(pars,'lambda_alpha',default_lambda_alpha,valid_lambda_alpha);
+          addOptional(pars,'lambda_alpha',default_lambda_sigma,valid_lambda_sigma);
+            
+          % Target setpoint
+          defaultY_target = zeros(1,size(y_d,2));
+          validY_target = @(x) (size(x,1) == 1 && size(x,2) == size(y_d,2));
+          addOptional(pars,'y_target',defaultY_target,validY_target);
+          
+          if any(strcmp(varargin, 'u_s'))
+            fprintf('U_S vorhanden');
+          else
+            fprintf('U_S nicht vorhanden');
+          end
+       
           parse(pars,u_d,y_d,Q,R,n,L,varargin{:});
           obj.u_d = pars.Results.u_d;
           obj.y_d = pars.Results.y_d;
@@ -89,6 +117,10 @@ classdef DDMPC < handle
           obj.G_y = pars.Results.G_mat_y;
           obj.g_u = pars.Results.g_vec_u;
           obj.g_y = pars.Results.g_vec_y;
+          
+
+          
+          nargin
           
           [N_u, obj.m] = size(obj.u_d);
           [N_y, obj.p] = size(obj.y_d);
