@@ -1,153 +1,28 @@
 classdef DDMPC < handle
    properties
-%       H
-%       Aeq
-%       alpha_dim
-%       u_measure
-%       y_measure
-%       U_d_next
-%       n
-%       test = 1;
-        u_d;    % Input trajectory
-        y_d;    % Output trajectory
-        Q;  % Cost matrix Q
-        R;  % Cost matri R
-        n;  % Upper bound on system order
-        L;  % Prediction horizon
-        u_s;    % Setpoint for the input
-        y_s;    % Setpoint for the output
-        N;  % Input trajectory length
-        m;  % Input dimension
-        p;  % Output dimension
-        HLn_u;  % Input Hankel matrix: H_(L+n)(u^d)
-        HLn_y;  % Output Hankel matrix: H_(L+n)(d^d)
-        costMat;    % Quadratic cost matrix for quadprog solver
-        costVec;    % Cost vector for quadprog solver
-        condMat;    % Condition matrix for quadprog solver
-        Hn_u;   
-        Hn_y;
-        HL_u;
-        HL_y;
-        HL;    % Hankel matrix [H_L(u^d); H_L(y^d)]
-        Hn;    % Hankel matrix [H_n(u^d); H_n(y^d)]
-        u_measure;
-        y_measure;
-        G_u;
-        G_y;
-        g_u;
-        g_y;
-        boundaryMat;
-        boundaryVec;
+       u_d,y_d,Q,R,n,L,u_s,y_s,G_u,G_y,g_u,g_y,m,p,N,alpha_dim,sigma_dim,Hn,HL,costMat,costVec,condMat,boundaryMat,boundaryVec,u_measure,y_measure
    end
    methods
        function obj = DDMPC(u_d,y_d,Q,R,n,L,varargin)
           
           pars = inputParser;
           
-          defaultU_s = zeros(1,size(u_d,2));
-          defaultY_s = zeros(1,size(y_d,2));
-          defaultG_u = zeros(0,size(u_d,2));
-          defaultG_y = zeros(0,size(y_d,2));
-          defaultg_u = zeros(0,1);
-          defaultg_y = zeros(0,1);
+          [obj.u_d,obj.y_d,obj.Q,obj.R,obj.n,obj.L,obj.u_s,obj.y_s,obj.G_u,obj.G_y,obj.g_u,obj.g_y,obj.m,obj.p,obj.N,obj.alpha_dim,obj.sigma_dim] = load_inputs(pars,u_d,y_d,Q,R,n,L,varargin);
           
-          validQ = @(x) (check_positiv_semi_definit(x));
-          validR = @(x) (check_positiv_semi_definit(x));
-          validn = @(x) (x>0);
-          validL = @(x) (x>0);
-          validU_s = @(x) (size(x,1) == 1 && size(x,2) == size(u_d,2));
-          validY_s = @(x) (size(x,1) == 1 && size(x,2) == size(y_d,2));
-          validG_u = @(x) (size(x,2) == size(u_d,2));
-          validG_y = @(x) (size(x,2) == size(y_d,2));
-          validg_u = @(x) (size(x,2) == 1);
-          validg_y = @(x) (size(x,2) == 1);
+          [obj.Hn, obj.HL] = create_Hankels(obj.u_d,obj.y_d,obj.L,obj.n,obj.m,obj.p);
           
-          addRequired(pars,'u_d');
-          addRequired(pars,'y_d');
-          addRequired(pars,'Q',validQ);
-          addRequired(pars,'R',validR);
-          addRequired(pars,'n',validn);
-          addRequired(pars,'L',validL);
-          addOptional(pars,'u_s',defaultU_s,validU_s);
-          addOptional(pars,'y_s',defaultY_s,validY_s);
-          addOptional(pars,'G_mat_u',defaultG_u,validG_u);
-          addOptional(pars,'G_mat_y',defaultG_y,validG_y);
-          addOptional(pars,'g_vec_u',defaultg_u,validg_u);
-          addOptional(pars,'g_vec_y',defaultg_y,validg_y);
+          [obj.costMat, obj.costVec] = create_costfunction(obj.Q,obj.R,obj.L,obj.HL,obj.u_s,obj.y_s);
           
-          
-          parse(pars,u_d,y_d,Q,R,n,L,varargin{:});
-          obj.u_d = pars.Results.u_d;
-          obj.y_d = pars.Results.y_d;
-          obj.Q = pars.Results.Q;
-          obj.R = pars.Results.R;
-          obj.n = pars.Results.n;
-          obj.L = pars.Results.L;
-          obj.u_s = pars.Results.u_s;
-          obj.y_s = pars.Results.y_s;
-          obj.G_u = pars.Results.G_mat_u;
-          obj.G_y = pars.Results.G_mat_y;
-          obj.g_u = pars.Results.g_vec_u;
-          obj.g_y = pars.Results.g_vec_y;
-          
-          [N_u, obj.m] = size(obj.u_d);
-          [N_y, obj.p] = size(obj.y_d);
+          obj.condMat = obj.Hn;  
 
-          % Check Condidition matricies and vectors G_u, G_y, g_u, g_y
-          if((size(obj.G_u,1)~=size(obj.g_u,1))||(size(obj.G_y,1)~=size(obj.g_y,1)))
-              error("Sizes of Conndtion Matrix G and vector g do not fit")
-          end
-          
-          % Check size of cost matrices
-          if ~isequal(size(obj.Q), [obj.p obj.p])
-               error("Size of costmatrix Q is not correct")
-          end
-          if ~isequal(size(obj.R), [obj.m obj.m])
-               error("Size of costmatrix R is not correct")
-          end
-          
-          % Check that input and output length are the same
-          if ~(N_u == N_y)
-              error("Input and output trajectory length don't fit")
-          end
-          
-          obj.N = N_u;
-          
-          % Check required data length
-          if ~(obj.N >= (obj.m+1)*obj.L-1)
-              error("Lower bound on required data length N not full filled")
-          end
-          
-          % Create input Hankel matrix: H_(L+n)(u^d)
-          obj.HLn_u = create_Hankel(obj.u_d, obj.L, obj.n);
-          % Create output Hankel matrix: H_(L+n)(y^d)
-          obj.HLn_y = create_Hankel(obj.y_d, obj.L, obj.n);
+          [obj.boundaryMat,obj.boundaryVec] = create_boundryfunction(obj.G_u,obj.G_y,obj.g_u,obj.g_y,obj.L,obj.HL);
 
-          
-          % Check if input data is persistntly exciting of order L
-          if ~(check_persistently_exciting(obj.HLn_u))
-              error("Input sequence is not persistently exciting of order " + (obj.L+obj.n))
+          robust = true;          
+          if(robust)           
+              lambda_alpha = 0.3;
+              lambda_sigma = 0.3;
+              [obj.costMat,obj.costVec,obj.condMat,obj.boundaryMat,obj.boundaryVec] = add_robustness(obj.costMat,obj.costVec,obj.condMat,obj.boundaryMat,obj.boundaryVec,lambda_alpha,lambda_sigma,obj.alpha_dim,obj.sigma_dim);
           end
-          
-          obj.Hn_u = obj.HLn_u(1:obj.n*obj.m,:);
-          obj.Hn_y = obj.HLn_y(1:obj.n*obj.p,:);
-          obj.HL_u = obj.HLn_u(obj.n*obj.m+1:end,:);
-          obj.HL_y = obj.HLn_y(obj.n*obj.p+1:end,:);
-          
-          obj.Hn = [obj.Hn_u; obj.Hn_y];    % Create combined Hankel matrix history
-          obj.HL = [obj.HL_u; obj.HL_y];    % Create combined Hankel matrix future
-          
-          QR_diag = blkdiag(kron(eye(L),R),kron(eye(L),Q)); % Create quadratic cost matrix
-          obj.costMat = obj.HL'*QR_diag*obj.HL;
-          obj.costMat = (obj.costMat+obj.costMat')/2;
-          obj.costVec = -2*[kron(ones(L,1),obj.u_s'); kron(ones(L,1),obj.y_s')]'*QR_diag*obj.HL; %zeros(obj.N+1-obj.L-obj.n,1);   % Create cost vector
-          
-
-          obj.condMat = obj.Hn; % Create condition matrix for quadprog solver 
-
-          obj.boundaryMat = blkdiag(kron(eye(L),obj.G_u),kron(eye(L),obj.G_y))*obj.HL;
-          obj.boundaryVec = [kron(ones(obj.L,1),obj.g_u);kron(ones(obj.L,1),obj.g_y)];
-          
           
           obj.u_measure=zeros(obj.n*obj.m,1);
           obj.y_measure=zeros(obj.n*obj.p,1);
@@ -155,19 +30,37 @@ classdef DDMPC < handle
        
        function u_next = step(obj,u_measure_new, y_measure_new)
 
+
+           nonlin = true;
+           if(nonlin)
+               obj.u_d = [obj.u_d(2:end,:); u_measure_new'];
+               obj.y_d = [obj.y_d(2:end,:); y_measure_new'];
+                
+               [obj.Hn, obj.HL] = create_Hankels(obj.u_d,obj.y_d,obj.L,obj.n,obj.m,obj.p);
+               [obj.costMat, obj.costVec] = create_costfunction(obj.Q,obj.R,obj.L,obj.HL,obj.u_s,obj.y_s);
+               obj.condMat = obj.Hn;
+               [obj.boundaryMat,obj.boundaryVec] = create_boundryfunction(obj.G_u,obj.G_y,obj.g_u,obj.g_y,obj.L,obj.HL);
+               lambda_alpha = 0.3;
+               lambda_sigma = 0.3;
+               [obj.costMat,obj.costVec,obj.condMat,obj.boundaryMat,obj.boundaryVec] = add_robustness(obj.costMat,obj.costVec,obj.condMat,obj.boundaryMat,obj.boundaryVec,lambda_alpha,lambda_sigma,obj.alpha_dim,obj.sigma_dim);
+
+           end
+
            obj.u_measure = [obj.u_measure; u_measure_new];  % Stacked input measurement trajectories
            obj.y_measure = [obj.y_measure; y_measure_new];  % Stacked output measurement trajectories
 
-           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.m+1:end)];   % Create condition vector for quadprog solver
-
-           options = optimoptions('quadprog','Display','off');%, 'MaxIterations',2.0e+05);   % Define options for quadprog solver
+           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.p+1:end)];   % Create condition vector for quadprog solver
            
-           alpha = quadprog(obj.costMat,obj.costVec,obj.boundaryMat,obj.boundaryVec,obj.condMat,condVec, [],[],[],options);
+%            options = optimoptions('quadprog','Display','off');%, 'MaxIterations',2.0e+05);   % Define options for quadprog solver
+           
+           alpha_sigma = quadprog(obj.costMat,obj.costVec,obj.boundaryMat,obj.boundaryVec,obj.condMat,condVec, [],[],[]);%,options);
 
-           cost = alpha' * obj.costMat * alpha
-           cond = max(abs(obj.condMat * alpha-condVec))
+%            cost = alpha_sigma' * obj.costMat * alpha_sigma + obj.costVec*alpha_sigma
+%            cond = max(abs(obj.condMat * alpha_sigma-condVec))
+%            bound = min(obj.boundaryMat*alpha_sigma<obj.boundaryVec)
+%            sigma = alpha_sigma(obj.alpha_dim+1:end)'
 
-           u_next = obj.HL_u(1:obj.m,:) * alpha;
+           u_next = obj.HL(1:obj.m,:) * alpha_sigma(1:obj.alpha_dim);
       end
    end
 end

@@ -3,6 +3,7 @@ close;
 clear;
 clc;
 
+
 %% Constructing a State-Space Model of the DC Motor
 % Enter the values to specify the DC motor
 R= 0.4;     % Ohms
@@ -24,9 +25,9 @@ sys_dc = ss(A,B,C,D,ts) % Create the discrete system
 
 % Generate a input trajectory
 t = 0:ts:8;  
-% u_d = randn(length(t),1);   % Generate a random one dimensional input
-% save('DC_motor_input.mat','u_d');
-u_d = load('DC_motor_input.mat').u_d;    % Load predefinded input for testing
+u_d = randn(length(t),1);   % Generate a random one dimensional input
+save('DC_motor_input.mat','u_d');
+%u_d = load('DC_motor_input.mat').u_d;    % Load predefinded input for testing
 
 %% Plot the system response.
 figure()
