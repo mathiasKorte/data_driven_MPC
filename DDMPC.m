@@ -29,7 +29,11 @@ classdef DDMPC < handle
        end
        
        function u_next = step(obj,u_measure_new, y_measure_new)
+           
+           obj.u_measure = [obj.u_measure; u_measure_new];  % Stacked input measurement trajectories
+           obj.y_measure = [obj.y_measure; y_measure_new];  % Stacked output measurement trajectories
 
+           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.p+1:end)];   % Create condition vector for quadprog solver
 
            nonlin = true;
            if(nonlin)
@@ -43,13 +47,11 @@ classdef DDMPC < handle
                lambda_alpha = 0.3;
                lambda_sigma = 0.3;
                [obj.costMat,obj.costVec,obj.condMat,obj.boundaryMat,obj.boundaryVec] = add_robustness(obj.costMat,obj.costVec,obj.condMat,obj.boundaryMat,obj.boundaryVec,lambda_alpha,lambda_sigma,obj.alpha_dim,obj.sigma_dim);
-
+               obj.condMat = [obj.condMat;[ones(1,obj.alpha_dim),zeros(1,obj.sigma_dim)]];
+               condVec = [condVec;1];
            end
 
-           obj.u_measure = [obj.u_measure; u_measure_new];  % Stacked input measurement trajectories
-           obj.y_measure = [obj.y_measure; y_measure_new];  % Stacked output measurement trajectories
-
-           condVec = [obj.u_measure(end-obj.n*obj.m+1:end);obj.y_measure(end-obj.n*obj.p+1:end)];   % Create condition vector for quadprog solver
+           
            
 %            options = optimoptions('quadprog','Display','off');%, 'MaxIterations',2.0e+05);   % Define options for quadprog solver
            
