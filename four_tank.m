@@ -5,15 +5,32 @@ clc;
 
 %% Create the state-space representatnion
 ts = 1.5;       % Sampling time 1.5s
-x = zeros(4,1); % Define x_0
+x = [0; 0; 0; 0]; % Define x_0
 
 % Generate a input trajectory
 t = 0:ts:500;
-u = randn(length(t),2);   % Generate a random one dimensional input
 
-%%
-y(1) = x(1);
-y(2) = x(2);
+% Generate a random two dimensional input [0,60]
+min = 0;
+max = 60;
+u = (max-min).*rand(length(t),2) + min;
+
+% Generate the corresponding system response to the random input
+y = [];
+for i=1:length(u)
+    % TODO: Check state dimension
+    x = fourTankStep(x,u(i,:),ts)
+    y = [y; [x(1) x(2)]];
+end
+
+% Plot the system response
+figure
+plot(y(:,1));
+hold on;
+plot(y(:,2));
+%plot(u(:,1))
+grid on;
+%legend('Output 1','Output 2','Input');
 %% Initialization of DDMPC
 n = 4;                  % Upper bound on system order
 N = 150;                % Input trajectory length
@@ -23,6 +40,8 @@ R = 2*eye(n);           % Cost matrix R
 lambda_alpha = 5e-5;    % Regularization parameter lambda_alpha
 lambda_sigma = 2e5;     % Regularization parameter lambda_sigma
 
+
+%% Function definition
 function x_next = fourTankStep(x, u, ts)
     % Constructing a State-Space Model of the 4 tank system
 
