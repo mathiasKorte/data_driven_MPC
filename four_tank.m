@@ -5,7 +5,7 @@ clc;
 
 %% Create the state-space representatnion
 ts = 1.5;       % Sampling time 1.5s
-x = [0; 0; 0; 0]; % Define x_0
+x = [0 0 0 0]; % Define x_0
 
 % Generate a input trajectory
 t = 0:ts:500;
@@ -23,14 +23,33 @@ for i=1:length(u)
     y = [y; [x(1) x(2)]];
 end
 
-% Plot the system response
+%% Load input and output data from file
+% TODO: Load files "data/four_tank_input.mat" and
+% "data/four_tank_output.mat"
+
+%% Open-loop plots
+
+% Plot open-loop input
 figure
-plot(y(:,1));
 hold on;
-plot(y(:,2));
-%plot(u(:,1))
+title('');
+xlabel('Time t');
+ylabel('Open-loop input [cm^3/s]'); 
+plot(u(:,1),'DisplayName','Input u_1');   % Trajectory of input 1
+plot(u(:,2),'DisplayName','Input u_2');   % Trajectory of input 2
 grid on;
-%legend('Output 1','Output 2','Input');
+legend;
+
+% Plot open-loop output
+figure
+hold on;
+title('');
+xlabel('Time t');
+ylabel('Open-loop input [cm]');
+plot(y(:,1),'DisplayName','Output y_1');   % Trajectory of tank level 1
+plot(y(:,2),'DisplayName','Output y_2');   % Trajectory of tank level 2
+grid on;
+legend;
 %% Initialization of DDMPC
 n = 4;                  % Upper bound on system order
 N = 150;                % Input trajectory length
