@@ -19,13 +19,14 @@ u = (max-min).*rand(length(t),2) + min;
 y = [];
 for i=1:length(u)
     % TODO: Check state dimension
-    x = fourTankStep(x,u(i,:),ts)
+    x = fourTankStep(x,u(i,:),ts);
     y = [y; [x(1) x(2)]];
 end
 
 %% Load input and output data from file
-% TODO: Load files "data/four_tank_input.mat" and
-% "data/four_tank_output.mat"
+% Load files "data/four_tank_input.mat" and "data/four_tank_output.mat"
+u = load('data\four_tank_input','-mat').u;
+y = load('data\four_tank_output.mat','-mat').y;
 
 %% Open-loop plots
 
@@ -59,6 +60,14 @@ R = 2*eye(n);           % Cost matrix R
 lambda_alpha = 5e-5;    % Regularization parameter lambda_alpha
 lambda_sigma = 2e5;     % Regularization parameter lambda_sigma
 
+
+% TODO: Restrict the input to u \in [0,60]
+ddmpc = DDMPC(u,y,Q,R,n,L, ...
+    'y_s',[15;15], ...
+    'G_mat_u',eye(u_dim), 'g_vec_u',ones(u_dim,1)*60, ...
+    'lambda_alpha', lambda_alpha, ...
+    'lambda_sigma',lambda_sigma, ...
+    'ctrl_mode', 'nonlinear');
 
 %% Function definition
 function x_next = fourTankStep(x, u, ts)
