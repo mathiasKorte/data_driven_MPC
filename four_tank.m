@@ -25,8 +25,8 @@ end
 
 %% Load input and output data from file
 % Load files "data/four_tank_input.mat" and "data/four_tank_output.mat"
-% u = load('data\four_tank_input','-mat').u;
-% y = load('data\four_tank_output.mat','-mat').y;
+u = load('data\four_tank_input','-mat').u;
+y = load('data\four_tank_output.mat','-mat').y;
 
 %% Open-loop plots
 
@@ -51,6 +51,7 @@ plot(y(:,1),'DisplayName','Output y_1');   % Trajectory of tank level 1
 plot(y(:,2),'DisplayName','Output y_2');   % Trajectory of tank level 2
 grid on;
 legend;
+
 %% Initialization of DDMPC
 n = 4;                  % Upper bound on system order
 N = 150;                % Input trajectory length
@@ -60,8 +61,6 @@ R = 0*eye(2);           % Cost matrix R
 lambda_alpha = 5e-5;    % Regularization parameter lambda_alpha
 lambda_sigma = 2e5;     % Regularization parameter lambda_sigma
 
-
-% TODO: Restrict the input to u \in [0,60]
 ddmpc = DDMPC(u,y,Q,R,n,L, ...
      'y_s',[15,15], ...
      'G_mat_u',[eye(2);-eye(2)], 'g_vec_u',[60;60;0;0], ...
@@ -69,21 +68,47 @@ ddmpc = DDMPC(u,y,Q,R,n,L, ...
      'lambda_sigma',lambda_sigma, ...
      'ctrl_mode', 'nonlinear');
 
+%% Run control steps
+x = [0 0 0 0]';     % Define x_0
 
+u = [0 0]';         % Define start input
+y = [x(1) x(2)]';   % Define start output
 
-x = zeros(4,1);
-y = [x(1);x(2)];
-u = zeros(2,1);
-u_traj = [];
-y_traj =[];
+u_traj = [];        %
+y_traj =[];         %
+
+% Run DDMPC for 600 s
 for i=1:100
+    
     u = ddmpc.step(u,y);
     x = fourTankStep(x,u,ts);
-    y = [x(1);x(2)];
+    y = [x(1) x(2)]';
     
     u_traj = [u_traj; u'];
     y_traj = [y_traj; y'];
 end
+
+% Execute a setpoint change
+
+% % Generate a random two dimensional input [0,60]
+% min = 0;
+% max = 60;
+% u_test = (max-min).*rand(length(t),2) + min;
+% 
+% u_traj = [];
+% y_traj =[];
+% for i=1:200
+%     y = C * x + D * u;
+%     x = A * x + B * u;
+% 
+%     y = y+randn(y_dim,1)*1;
+% 
+%     u = ddmpc.step(u,y);
+%     u_traj = [u_traj; u'];
+%     y_traj = [y_traj; y'];
+% end
+
+%% Closed-loop plots
 figure
 subplot(2,1,1)
 plot(y_traj)
@@ -93,7 +118,18 @@ subplot(2,1,2)
 plot(u_traj)
 grid on;
 title('U')
+% Plot closed-loop input
 
+% Plot closed-loop output
+% figure
+% subplot(2,1,1)
+% plot(y_traj)
+% grid on;
+% title('Y');
+% subplot(2,1,2)
+% plot(u_traj)
+% grid on;
+% title('U')
 
 
 
