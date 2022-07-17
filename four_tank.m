@@ -1,6 +1,6 @@
 %% Prepare workspace
-close;
-clear;
+close all;
+clear all;
 clc;
 
 %% Create the state-space representatnion
@@ -25,8 +25,8 @@ end
 
 %% Load input and output data from file
 % Load files "data/four_tank_input.mat" and "data/four_tank_output.mat"
-u = load('data\four_tank_input','-mat').u;
-y = load('data\four_tank_output.mat','-mat').y;
+% u = load('data\four_tank_input','-mat').u;
+% y = load('data\four_tank_output.mat','-mat').y;
 
 %% Open-loop plots
 
@@ -55,19 +55,47 @@ legend;
 n = 4;                  % Upper bound on system order
 N = 150;                % Input trajectory length
 L = 35;                 % Prediction horizon
-Q = eye(n);             % Cost matrix Q
-R = 2*eye(n);           % Cost matrix R
+Q = eye(2);             % Cost matrix Q
+R = 0*eye(2);           % Cost matrix R
 lambda_alpha = 5e-5;    % Regularization parameter lambda_alpha
 lambda_sigma = 2e5;     % Regularization parameter lambda_sigma
 
 
 % TODO: Restrict the input to u \in [0,60]
 ddmpc = DDMPC(u,y,Q,R,n,L, ...
-    'y_s',[15;15], ...
-    'G_mat_u',eye(u_dim), 'g_vec_u',ones(u_dim,1)*60, ...
-    'lambda_alpha', lambda_alpha, ...
-    'lambda_sigma',lambda_sigma, ...
-    'ctrl_mode', 'nonlinear');
+     'y_s',[15,15], ...
+     'G_mat_u',[eye(2);-eye(2)], 'g_vec_u',[60;60;60;60], ...
+     'lambda_alpha', lambda_alpha, ...
+     'lambda_sigma',lambda_sigma, ...
+     'ctrl_mode', 'nonlinear');
+
+
+
+x = zeros(4,1);
+y = [x(1);x(2)];
+u = zeros(2,1);
+u_traj = [];
+y_traj =[];
+for i=1:100
+    u = ddmpc.step(u,y);
+    x = fourTankStep(x,u,ts);
+    y = [x(1);x(2)];
+    
+    u_traj = [u_traj; u'];
+    y_traj = [y_traj; y'];
+end
+figure
+subplot(2,1,1)
+plot(y_traj)
+grid on;
+title('Y');
+subplot(2,1,2)
+plot(u_traj)
+grid on;
+title('U')
+
+
+
 
 %% Function definition
 function x_next = fourTankStep(x, u, ts)
@@ -87,6 +115,9 @@ function x_next = fourTankStep(x, u, ts)
     g = 981;            % Gravitational acceleration 981cm2/s
     gamma1 = 0.4;       % Ratio of water diverted to tank 1 rather than tank 3
     gamma2 = gamma1;    % Ratio of water diverted to tank 2 rather than tank 4
+    
+    x_dot = x;
+    x(x<0)=0;
 
     x_dot(1) = -a1/A1 * sqrt(2*g*x(1)) + a3/A1 * sqrt(2*g*x(3)) + gamma1/A1 * u(1);
     x_dot(2) = -a2/A2 * sqrt(2*g*x(2)) + a4/A2 * sqrt(2*g*x(4)) + gamma2/A2 * u(2);
