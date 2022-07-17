@@ -8,26 +8,26 @@ ts = 1.5;       % Sampling time 1.5s
 x = [0 0 0 0]; % Define x_0
 
 % Generate a input trajectory
-t = 0:ts:500;
+t = 0:ts:225;
 
 % Generate a random two dimensional input [0,60]
-min = 0;
-max = 60;
+min = 20;
+max = 30;
 u = (max-min).*rand(length(t),2) + min;
 
 % Generate the corresponding system response to the random input
 y = [];
 for i=1:length(u)
-    % TODO: Check state dimension
     x = fourTankStep(x,u(i,:),ts);
     y = [y; [x(1) x(2)]];
 end
 
 %% Load input and output data from file
-% Load files "data/four_tank_input.mat" and "data/four_tank_output.mat"
-u = load('data\four_tank_input','-mat').u;
-y = load('data\four_tank_output.mat','-mat').y;
-
+% Load files "data/four_tank_input.mat", "data/four_tank_output.mat" and 
+% "data/four_tank_state.mat"
+% u = load('data\four_tank_input','-mat').u;
+% y = load('data\four_tank_output.mat','-mat').y;
+% x = load('data\four_tank_state.mat','-mat').x;
 %% Open-loop plots
 
 % Plot open-loop input
@@ -57,7 +57,7 @@ n = 4;                  % Upper bound on system order
 N = 150;                % Input trajectory length
 L = 35;                 % Prediction horizon
 Q = eye(2);             % Cost matrix Q
-R = 0*eye(2);           % Cost matrix R
+R = 0.00001*eye(2);           % Cost matrix R
 lambda_alpha = 5e-5;    % Regularization parameter lambda_alpha
 lambda_sigma = 2e5;     % Regularization parameter lambda_sigma
 
@@ -68,70 +68,46 @@ ddmpc = DDMPC(u,y,Q,R,n,L, ...
      'lambda_sigma',lambda_sigma, ...
      'ctrl_mode', 'nonlinear');
 
-%% Run control steps
-x = [0 0 0 0]';     % Define x_0
+%% Run DDMPC
 
-u = [0 0]';         % Define start input
-y = [x(1) x(2)]';   % Define start output
-
-u_traj = [];        %
-y_traj =[];         %
-
-% Run DDMPC for 600 s
 for i=1:100
+    u_new = u(end,:);
+    y_new = y(end,:);
     
-    u = ddmpc.step(u,y);
-    x = fourTankStep(x,u,ts);
-    y = [x(1) x(2)]';
+    u_new = ddmpc.step(u_new',y_new');
+    u_new = u_new';
+
+    x = fourTankStep(x,u_new,ts);
+    y_new = [x(1) x(2)];
     
-    u_traj = [u_traj; u'];
-    y_traj = [y_traj; y'];
+    u = [u;u_new];
+    y = [y;y_new];
 end
 
-% Execute a setpoint change
-
-% % Generate a random two dimensional input [0,60]
-% min = 0;
-% max = 60;
-% u_test = (max-min).*rand(length(t),2) + min;
-% 
-% u_traj = [];
-% y_traj =[];
-% for i=1:200
-%     y = C * x + D * u;
-%     x = A * x + B * u;
-% 
-%     y = y+randn(y_dim,1)*1;
-% 
-%     u = ddmpc.step(u,y);
-%     u_traj = [u_traj; u'];
-%     y_traj = [y_traj; y'];
-% end
-
 %% Closed-loop plots
-figure
-subplot(2,1,1)
-plot(y_traj)
-grid on;
-title('Y');
-subplot(2,1,2)
-plot(u_traj)
-grid on;
-title('U')
+
 % Plot closed-loop input
+figure
+hold on;
+title('');
+xlabel('Time t');
+ylabel('Closed-loop input [cm^3/s]'); 
+plot(u(:,1),'DisplayName','Input u_1');   % Trajectory of input 1
+plot(u(:,2),'DisplayName','Input u_2');   % Trajectory of input 2
+grid on;
+legend('Location','southeast');
 
 % Plot closed-loop output
-% figure
-% subplot(2,1,1)
-% plot(y_traj)
-% grid on;
-% title('Y');
-% subplot(2,1,2)
-% plot(u_traj)
-% grid on;
-% title('U')
-
-
+figure
+hold on;
+title('');
+xlabel('Time t');
+ylabel('Closed-loop input [cm]');
+yline(15,'-.b');
+plot(y(:,1),'DisplayName','Output y_1');   % Trajectory of tank level 1
+plot(y(:,2),'DisplayName','Output y_2');   % Trajectory of tank level 2
+grid on;
+legend('Location','southeast');
 
 %% Function definition
 function x_next = fourTankStep(x, u, ts)
