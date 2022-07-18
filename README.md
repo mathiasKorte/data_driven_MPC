@@ -23,5 +23,5 @@ The constructer generates the DDMPC-class with user given paramters. These param
 
 ## Evalutaion 
 For purposes of evaluation we included two files for testing our DDMPC:
-- engine_DDMPC_test.m: for the linear sysems with state space representation
-- fourtank_DDMPC_test.m: for a nonlinear system
+- dc_motor_example.m: for the linear sysems with state space representation
+- four_tank_example.m: for a nonlinear system
