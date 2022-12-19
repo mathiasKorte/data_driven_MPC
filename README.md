@@ -7,7 +7,7 @@ This project was created by Stephan Rappensberger and Mathias Korte
 The constructer generates the DDMPC-class with user given paramters. These parameters can/must specified:
 
 #### Necessary:
-- matrcies U_d$\in\mathcal{R}^{N\times m}$ and Y_d $\in\mathcal{R}^{N\times p}$ contain the recorded input-output trajectory of length $N$ of a sythem with $u\in\mathcal{R}^{m}$ and $y\in\mathcal{R}^{p}$
+- matrcies U_d $\in\mathcal{R}^{N\times m}$ and Y_d $\in\mathcal{R}^{N\times p}$ contain the recorded input-output trajectory of length $N$ of a sythem with $u\in\mathcal{R}^{m}$ and $y\in\mathcal{R}^{p}$
 - positiv definite cost-matricies Q$\in\mathcal{R}^{m\times m}$ and R$\in\mathcal{R}^{p\times p}$ 
 - postive values for n and L (n is the number of past $u_k$/$y_k$ considered for including the state information and L is number of steps the opimization problems solves into the future. It follows that complexer systems can only be solved with bigger n and L.)
 
