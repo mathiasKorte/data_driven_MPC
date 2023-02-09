@@ -25,3 +25,6 @@ The constructer generates the DDMPC-class with user given paramters. These param
 For purposes of evaluation we included two files for testing our DDMPC:
 - dc_motor_example.m: for the linear sysems with state space representation
 - four_tank_example.m: for a nonlinear system
+
+## Literature
+We implemented DDMPC based on this paper: "Data-driven model predictive control: closed-loop guarantees and experimental results" (https://arxiv.org/abs/2107.00966). But the whole idea of Data-driven MPC is first mentioned in "Data-Enabled Predictive Control: In the Shallows of the DeePC" (https://arxiv.org/abs/1811.05890)
